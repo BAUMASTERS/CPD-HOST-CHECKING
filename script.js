@@ -6,9 +6,9 @@ async function fetchScheduleData({ san, brand, date }) {
   showLoading();
 
   try {
-    const res = await fetch(`{API_URL}?action=processForm`,
-      {
+    const res = await fetch(`${API_URL}?action=processForm`, {
         method: "POST",
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ san, brand, date })
       }
     );
@@ -16,11 +16,10 @@ async function fetchScheduleData({ san, brand, date }) {
     const text = await res.text();
     const json = JSON.parse(text);
 
-    if (!json.success) {
-      throw new Error(json.message || "API error");
+    if (!json.ok) {
+      throw new Error(json.error || "API error");
     }
 
-    // 🔥 CỰC KỲ QUAN TRỌNG
     currentData = json.data;
 
     console.log("✅ DATA LOADED:", currentData);
