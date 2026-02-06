@@ -1,76 +1,244 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
+    <base target="_top">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Livestream Schedule</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lịch Trình Phát Sóng - BAU MASTER</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .shp-bg { border-left: 5px solid #ee4d2d; } /* Màu Shopee */
-        .tts-bg { border-left: 5px solid #000000; } /* Màu TikTok */
-    </style>
+    <link rel="stylesheet" href="./style.css"> 
 </head>
-<body class="bg-gray-100 min-h-screen p-4">
-
-    <div class="max-w-4xl mx-auto">
-        <header class="mb-8 text-center">
-            <h1 class="text-3xl font-bold text-gray-800 mb-4">Lịch Livestream OAP</h1>
-            
-            <select id="sheetSelector" onchange="fetchData()" class="w-full p-3 rounded-lg border-2 border-blue-500 bg-white shadow-sm focus:outline-none">
-                <option value="https://script.google.com/macros/s/AKfycbwbh3yEofUucmpwWUcbcccy0nKp3hWjqZoDDmcL187ZKDnYBVrP1DYyXjFo5xGzpn25/exec">Brand: OAP</option>
-                <option value="https://script.google.com/macros/s/AKfycbwbh3yEofUucmpwWUcbcccy0nKp3hWjqZoDDmcL187ZKDnYBVrP1DYyXjFo5xGzpn25/exec">Brand: MNY</option>
-                <option value="https://script.google.com/macros/s/AKfycbwbh3yEofUucmpwWUcbcccy0nKp3hWjqZoDDmcL187ZKDnYBVrP1DYyXjFo5xGzpn25/exec">Brand: GAR</option>
-                <option value="https://script.google.com/macros/s/AKfycbwbh3yEofUucmpwWUcbcccy0nKp3hWjqZoDDmcL187ZKDnYBVrP1DYyXjFo5xGzpn25/exec">Brand: 3CE</option>
-            </select>
-        </header>
-
-        <div id="loader" class="hidden text-center text-blue-600 font-bold">Đang tải dữ liệu...</div>
-        <div id="container" class="grid gap-4"></div>
+<body>
+<!-- LOGIN MODAL -->
+<div class="login-modal" id="loginModal">
+  <div class="login-box">
+    <div class="login-logo"><i class="fas fa-tv"></i></div>
+    <h2 class="login-title">LỊCH TRÌNH PHÁT SÓNG</h2>
+    
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block mb-2 text-sm font-medium text-gray-700">
+          <i class="fas fa-users mr-2"></i>CHỌN NGƯỜI DÙNG
+        </label>
+        <select id="userSelect" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition" required>
+          <option value="">-- Chọn user --</option>
+        </select>
+      </div>
+      
+      <div>
+        <label class="block mb-2 text-sm font-medium text-gray-700">
+          <i class="fas fa-user mr-2"></i>TÊN ĐĂNG NHẬP
+        </label>
+        <input type="text" id="username" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition bg-gray-50" readonly>
+      </div>
+      
+<div>
+  <label class="block mb-2 text-sm font-medium text-gray-700">
+    <i class="fas fa-lock mr-2"></i>MẬT KHẨU
+  </label>
+  <div class="relative">
+    <input type="password" id="password" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition" 
+           placeholder="Nhập mật khẩu" required>
+  </div>
+</div>
+      
+      <!-- THÊM PHẦN HIỂN THỊ ĐANG ĐĂNG NHẬP -->
+      <div class="login-loading hidden p-3 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 text-center" id="loginLoading">
+        <div class="flex items-center justify-center gap-2">
+          <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
+          <span>Đang đăng nhập...</span>
+        </div>
+      </div>
+      
+      <div class="login-error hidden p-3 bg-red-50 text-red-700 rounded-lg border border-red-200" id="loginError">
+        <i class="fas fa-exclamation-circle mr-2"></i>
+        <span id="errorMessage"></span>
+      </div>
+      
+      <button type="submit" class="w-full bg-gradient-to-r from-blue-900 to-teal-400 text-white py-3 rounded-lg font-semibold hover:opacity-90 transition flex items-center justify-center gap-2" id="loginButton">
+        <i class="fas fa-sign-in-alt"></i>ĐĂNG NHẬP
+      </button>
+    </form>
+  </div>
+</div>
+  
+  <!-- MAIN CONTENT -->
+  <div class="container" id="mainContent">
+    <!-- HEADER -->
+<div class="header">
+  <div class="header-content">
+    <!-- Di chuyển phần ngày tháng và room xuống dưới -->
+    <div style="width: 300px; display: flex; flex-direction: column; gap: 5px;">
+      <div class="current-date">
+        <i class="far fa-calendar-alt"></i>
+        <span id="currentDate">--/--/----</span>
+      </div>
+      <div class="current-room">
+        <i class="fas fa-door-closed"></i>
+        <span id="roomInfo">Room: --</span>
+      </div>
     </div>
 
-    <script>
-        async function fetchData() {
-            const url = document.getElementById('sheetSelector').value;
-            const container = document.getElementById('container');
-            const loader = document.getElementById('loader');
+    <div class="brand-container">
+      <div class="brand-logo" id="brandLogo"></div>
+      <div class="brand-info">
+        <h1 id="brandName">Lịch Trình Phát Sóng</h1>
+        <p id="platformInfo">Tải dữ liệu...</p>
+      </div>
+    </div>
+        
+        <div class="header-right" style="width: 300px;">
+          <div class="user-info">
+            <i class="fas fa-user"></i>
+            <span id="userName">User</span>
+            <button class="logout-btn" id="logoutBtn">
+              <i class="fas fa-sign-out-alt"></i>Đăng xuất
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- SUMMARY BAR -->
+    <div class="summary-bar" id="summaryBar">
+      <div class="summary-item">
+        <div class="summary-icon icon-total"><i class="fas fa-calendar-alt"></i></div>
+        <div><h3 id="totalSchedules">0</h3><p>Tổng số lịch</p></div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-icon icon-live"><i class="fas fa-circle"></i></div>
+        <div><h3 id="liveSchedules">0</h3><p>Đang Live</p></div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-icon icon-upcoming"><i class="fas fa-clock"></i></div>
+        <div><h3 id="upcomingSchedules">0</h3><p>Sắp tới</p></div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-icon icon-ended"><i class="fas fa-check-circle"></i></div>
+        <div><h3 id="endedSchedules">0</h3><p>Đã kết thúc</p></div>
+      </div>
+    </div>
 
-            loader.classList.remove('hidden');
-            container.innerHTML = '';
+    <!-- Thông báo auto refresh -->
+<div id="autoRefreshStatus" class="fixed bottom-4 left-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm hidden">
+  <i class="fas fa-sync-alt fa-spin mr-2"></i>
+  Tự động tải lại sau: <span id="refreshCountdown">30</span>s
+</div>
+    
+<!-- BAO BỌC FLEX LAYOUT -->
+<div class="info-panel-over-dashboard flex" style="gap:50px">
+  
+  <!-- THÔNG TIN CHUNG CỐ ĐỊNH (BÊN TRÁI) -->
+  <div class="info-panel" id="fixedInfoPanel" style="width: 55%; height: fit-content; position: sticky; top: 20px;">
+    <div class="background-section" id="backgroundSection" style="display: none">
+      <h3 class="text-lg font-semibold text-blue-900 mb-3 flex items-center justify-between">
+        <span><i class="fas fa-images mr-2"></i>BACKGROUND HÌNH ẢNH</span>
+        <button class="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-200" onclick="openBackgroundFullscreen(document.getElementById('backgroundDisplay').src)">
+          <i class="fas fa-expand mr-1"></i> Fullscreen
+        </button>
+      </h3>
+      <div class="mb-3">
+        <img id="backgroundDisplay" src="" alt="Background" class="w-full h-[500px] object-contain rounded-lg shadow-lg">
+      </div>
+      <div id="backgroundInfo"></div>
+    </div>
+  </div>
+  
+  <!-- KHU VỰC TABS CHÍNH (BÊN PHẢI) -->
+  <div class="tabs-main-area" style="width: 55%;">
+        <div class="info-header">
+      <h2 class="info-title"><i class="fas fa-info-circle"></i>THÔNG TIN CHUNG</h2>
+      <button class="action-btn pic-btn" onclick="window.open('https://quangvd-cloud.github.io/QR-Info/', '_blank')">
+        <i class="fas fa-external-link-alt"></i> Liên Hệ PIC
+      </button>
+    </div>
+    <div class="info-content" id="infoContent">Đang tải thông tin...</div>
+    <!-- TABS NAVIGATION -->
+    <div class="tab-navigation">
+      <button class="tab-btn active" data-tab="upcoming">
+        <i class="fas fa-clock"></i>Sắp tới
+      </button>
+      <button class="tab-btn" data-tab="cards">
+        <i class="fas fa-th-large"></i>Dạng thẻ
+      </button>
+      <button class="tab-btn" data-tab="table">
+        <i class="fas fa-table"></i>Dạng bảng
+      </button>
+    </div>
+    
+    <!-- UPCOMING TAB (KHÔNG CÒN THÔNG TIN CHUNG) -->
+    <div class="tab-content-wrapper active" id="upcomingTab">
+      <div class="card-grid-unit" id="upcomingCards"></div>
+    </div>
+    
+    <!-- CARDS TAB (KHÔNG CÒN THÔNG TIN CHUNG) -->
+    <div class="tab-content-wrapper" id="cardsTab">
+      <div class="card-grid" id="cardsGrid"></div>
+    </div>
+    
+    <!-- TABLE TAB (KHÔNG CÒN THÔNG TIN CHUNG) -->
+    <div class="tab-content-wrapper" id="tableTab">
+      <div class="table-container">
+        <table class="schedule-table">
+          <thead>
+            <tr><th>#</th><th>Thời gian</th><th>Tiêu đề</th><th>Host</th><th>Trạng thái</th><th>Thao tác</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+  
+  <div class="loading" id="loading">
+  <div class="bg-white p-10 rounded-lg shadow-xl text-center">
+    <div class="spinner"></div>
+    <p class="text-gray-700 mt-4" id="loadingText">
+      <i class="fas fa-sync-alt fa-spin mr-2"></i>Đang tải dữ liệu...
+    </p>
+  </div>
+</div>
+  
+  <!-- BACKGROUND MODAL -->
+  <div class="modal" id="backgroundModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title"><i class="fas fa-image"></i>BACKGROUND HÌNH ẢNH</h2>
+        <button class="modal-close" id="closeBackgroundModal"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <img id="backgroundImage" class="background-image" src="" alt="Background">
+        <div id="modalBackgroundInfo"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- CONFIRM LOGOUT -->
+  <div class="confirm-modal" id="confirmLogoutModal">
+    <div class="confirm-content">
+      <div class="text-red-500 text-5xl mb-4"><i class="fas fa-sign-out-alt"></i></div>
+      <h2 class="text-xl font-bold text-gray-800 mb-3">Xác Nhận Đăng Xuất</h2>
+      <p class="text-gray-600 mb-6">Bạn có chắc chắn muốn đăng xuất?</p>
+      <input
+  type="password"
+  id="logoutPassword"
+  placeholder="Nhập mật khẩu để xác nhận"
+  class="w-full p-3 mb-4 border-2 border-gray-300 rounded-lg focus:border-red-500"
+/>
 
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                data.forEach(item => {
-                    const card = document.createElement('div');
-                    const platformClass = item.platform === 'SHP' ? 'shp-bg' : 'tts-bg';
-                    
-                    card.className = `bg-white p-4 rounded-xl shadow-md ${platformClass} hover:shadow-lg transition-shadow`;
-                    card.innerHTML = `
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <span class="text-xs font-bold px-2 py-1 rounded ${item.platform === 'SHP' ? 'bg-orange-100 text-orange-600' : 'bg-gray-200 text-black'}">${item.platform}</span>
-                                <span class="ml-2 text-sm text-gray-500 font-medium">${item.date} (${item.day})</span>
-                            </div>
-                            <div class="text-right text-blue-600 font-bold">${item.start_time} - ${item.end_time}</div>
-                        </div>
-                        <div class="mt-3">
-                            <div class="text-lg font-bold text-gray-800 uppercase">Host: ${item.host}</div>
-                            <div class="text-sm text-gray-600">Loại: ${item.type} | PIC: ${item.pic}</div>
-                        </div>
-                        ${item.duo_host ? `<div class="mt-2 text-xs bg-blue-50 p-2 rounded text-blue-700">Duo: ${item.duo_host}</div>` : ''}
-                    `;
-                    container.appendChild(card);
-                });
-            } catch (error) {
-                container.innerHTML = '<p class="text-red-500 text-center">Không thể tải dữ liệu. Hãy kiểm tra lại link API.</p>';
-            } finally {
-                loader.classList.add('hidden');
-            }
-        }
-
-        // Tải dữ liệu lần đầu
-        fetchData();
-    </script>
+<div class="text-red-500 text-sm hidden" id="logoutError">
+  Mật khẩu không đúng!
+</div>
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-cancel" id="cancelLogout">Hủy bỏ</button>
+        <!-- <button class="confirm-btn confirm-logout" id="confirmLogout">Đăng xuất</button> -->
+        <button class="confirm-btn confirm-logout" onclick="confirmLogoutWithPassword()">
+  Đăng xuất
+</button>
+      </div>
+    </div>
+  </div>
+    <script src="./script.js"></script>
 </body>
 </html>
