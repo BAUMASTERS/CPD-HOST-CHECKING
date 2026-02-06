@@ -216,44 +216,66 @@ function getTimestampFromTime(timeString) {
 }
 
 // ===== HÀM TẢI DỮ LIỆU CHÍNH =====
-function loadScheduleForToday() {
+async function loadScheduleForToday() {
   if (!currentUser) return;
-  
+
   showLoading();
+
   const now = new Date();
-  const date = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}`;
-  
-  console.log("Đang tải dữ liệu cho ngày:", date);
-  
-  google.script.run
-    .withSuccessHandler(response => {
-      console.log("Nhận được response:", response);
-      if (response.success) {
-        const formattedData = {};
-        const key = `${currentUser.brand}_${currentUser.platform}`;
-        formattedData[key] = response.data;
-        
-        currentData = formattedData;
-        displayScheduleData(currentData, date);
-        updateInfoPanels();
-        updateRoomInfo(); // CẬP NHẬT THÔNG TIN ROOM
-        startAllCountdowns();
-        
-        console.log('✅ Đã tải dữ liệu. Sẽ tải lại sau 5 phút...');
-        scheduleAutoRefresh();
-      } else {
-        showAlert('Không thể tải dữ liệu: ' + (response.message || ''), 'error');
-      }
-      hideLoading();
-    })
-    .withFailureHandler(error => {
-      hideLoading();
-      console.error("Lỗi kết nối:", error);
-      showAlert('Lỗi kết nối!', 'error');
-      console.log('❌ Lỗi tải dữ liệu. Thử lại sau 5 phút...');
-      scheduleAutoRefresh();
-    })
-    .getScheduleForUser(currentUser, date);
+  const date = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  console.log("📅 Đang tải dữ liệu cho ngày:", date);
+
+  try {
+    const res = await fetch(`${API_URL}?action=processForm`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        san: currentUser.platform,
+        brand: currentUser.brand,
+        date: date
+      })
+    });
+
+    const text = await res.text();
+    let response;
+
+    try {
+      response = JSON.parse(text);
+    } catch {
+      throw new Error("API không trả về JSON");
+    }
+
+    console.log("📦 Nhận được response:", response);
+
+    if (!response.success) {
+      throw new Error(response.message || "Không thể tải dữ liệu");
+    }
+
+    const formattedData = {};
+    const key = `${currentUser.brand}_${currentUser.platform}`;
+    formattedData[key] = response.data;
+
+    currentData = formattedData;
+
+    displayScheduleData(currentData, date);
+    updateInfoPanels();
+    updateRoomInfo();
+    startAllCountdowns();
+
+    console.log("✅ Đã tải dữ liệu. Sẽ auto refresh...");
+    scheduleAutoRefresh();
+
+  } catch (err) {
+    console.error("❌ Lỗi tải dữ liệu:", err);
+    showAlert(err.message || "Lỗi kết nối!", "error");
+    scheduleAutoRefresh();
+
+  } finally {
+    hideLoading();
+  }
 }
 
 function displayScheduleData(data, date) {
@@ -1052,37 +1074,56 @@ function confirmLogoutWithPassword() {
 }
 
 // ===== ĐĂNG NHẬP =====
-function simpleLogin(username, password) {
+async function simpleLogin(username, password) {
   const loginLoading = document.getElementById('loginLoading');
   const loginButton = document.getElementById('loginButton');
   const loginError = document.getElementById('loginError');
-  
+
   if (loginLoading) loginLoading.classList.remove('hidden');
   if (loginButton) loginButton.disabled = true;
   if (loginError) loginError.classList.add('hidden');
-  
-  // Gọi server với cả username và password
-  google.script.run
-    .withSuccessHandler(response => {
-      if (loginLoading) loginLoading.classList.add('hidden');
-      if (loginButton) loginButton.disabled = false;
-      
-      if (response.success) {
-        currentUser = response.user;
-        localStorage.setItem('liveschedule_user', JSON.stringify(currentUser));
-        showMainContent();
-        loadScheduleForToday();
-        showAlert(`Chào mừng ${currentUser.username}!`, 'success');
-      } else {
-        showLoginError(response.message);
-      }
-    })
-    .withFailureHandler(error => {
-      if (loginLoading) loginLoading.classList.add('hidden');
-      if (loginButton) loginButton.disabled = false;
-      showLoginError('Lỗi kết nối! Vui lòng thử lại.');
-    })
-    .simpleLogin(username, password); // Truyền cả password
+
+  try {
+    const res = await fetch(`${API_URL}?action=simpleLogin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username,
+        password
+      })
+    });
+
+    const text = await res.text();
+    let response;
+
+    try {
+      response = JSON.parse(text);
+    } catch {
+      throw new Error("API không trả về JSON");
+    }
+
+    if (!response.success) {
+      throw new Error(response.message || "Đăng nhập thất bại");
+    }
+
+    // ✅ LOGIN OK
+    currentUser = response.user;
+    localStorage.setItem('liveschedule_user', JSON.stringify(currentUser));
+
+    showMainContent();
+    loadScheduleForToday();
+    showAlert(`Chào mừng ${currentUser.username}!`, 'success');
+
+  } catch (err) {
+    console.error("❌ Login error:", err);
+    showLoginError(err.message || 'Lỗi kết nối! Vui lòng thử lại.');
+
+  } finally {
+    if (loginLoading) loginLoading.classList.add('hidden');
+    if (loginButton) loginButton.disabled = false;
+  }
 }
 
 function showLoginError(message) {
@@ -1140,24 +1181,33 @@ function handleLogoError(imgElement) {
 }
 
 // ===== DOM READY =====
-document.addEventListener('DOMContentLoaded', function() {
-  // Load users list
-  function loadUsersList() {
-    google.script.run
-      .withSuccessHandler(response => {
-        if (response.success) {
-          allUsers = response.users;
-          populateUserSelect();
-        }
-      })
-      .getUsersList();
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* =======================
+     LOAD USERS LIST (FETCH)
+  ======================== */
+  async function loadUsersList() {
+    try {
+      const res = await fetch(`${API_URL}?action=getUsersList`);
+      const json = await res.json();
+
+      if (!json.success) throw new Error(json.message);
+
+      allUsers = json.users;
+      populateUserSelect();
+
+    } catch (err) {
+      console.error('❌ Load users failed:', err);
+      showAlert('Không tải được danh sách user', 'error');
+    }
   }
-  
+
   function populateUserSelect() {
     const userSelect = document.getElementById('userSelect');
     if (!userSelect) return;
-    
+
     userSelect.innerHTML = '<option value="">-- Chọn user --</option>';
+
     allUsers.forEach(user => {
       const option = document.createElement('option');
       option.value = user.id;
@@ -1165,138 +1215,82 @@ document.addEventListener('DOMContentLoaded', function() {
       userSelect.appendChild(option);
     });
   }
-  
-  // Tab switching
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      try {
-        document.querySelectorAll('.tab-btn').forEach(b => {
-          b.classList.remove('active');
-        });
-        
-        document.querySelectorAll('.tab-content-wrapper').forEach(c => {
-          c.classList.remove('active');
-        });
-        
-        this.classList.add('active');
-        const tabId = this.getAttribute('data-tab');
-        const tabContent = document.getElementById(tabId + 'Tab');
-        if (tabContent) {
-          tabContent.classList.add('active');
-        }
-      } catch (error) {
-        console.error('Lỗi khi chuyển tab:', error);
-      }
-    });
-  });
-  
-  // Event Listeners
+
+  /* =======================
+     LOGIN FORM
+  ======================== */
   const userSelect = document.getElementById('userSelect');
   const usernameInput = document.getElementById('username');
   const passwordInput = document.getElementById('password');
   const loginForm = document.getElementById('loginForm');
-  
-if (userSelect) {
-  userSelect.addEventListener('change', function() {
-    const user = allUsers.find(u => u.id == this.value);
-    if (user) {
-      usernameInput.value = user.username;
-      // KHÔNG tự động điền mật khẩu nữa - để người dùng tự nhập
-      passwordInput.value = '';
-      passwordInput.focus(); // Tự động focus vào ô mật khẩu
-    }
-  });
-}
 
-if (loginForm) {
-  loginForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const selectedUser = userSelect.value;
-    const usernameValue = usernameInput.value.trim();
-    const passwordValue = passwordInput.value.trim();
-    
-    if (!selectedUser) {
-      showLoginError('Vui lòng chọn user!');
-      return;
-    }
-    
-    if (!passwordValue) {
-      showLoginError('Vui lòng nhập mật khẩu!');
-      return;
-    }
-    
-    // Tìm user trong danh sách và kiểm tra mật khẩu
-    const user = allUsers.find(u => u.id == selectedUser);
-    if (!user) {
-      showLoginError('User không tồn tại!');
-      return;
-    }
-    
-    // KIỂM TRA MẬT KHẨU TRƯỚC KHI GỌI SERVER
-    if (user.password !== passwordValue) {
-      showLoginError('Mật khẩu không đúng!');
-      return;
-    }
-    
-    // Nếu mật khẩu đúng, thực hiện đăng nhập
-    hideLoginError();
-    simpleLogin(usernameValue, passwordValue); // Truyền cả username và password
-  });
-}
-  
+  if (userSelect) {
+    userSelect.addEventListener('change', function () {
+      const user = allUsers.find(u => u.id == this.value);
+      if (user) {
+        usernameInput.value = user.username;
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+    });
+  }
+
   if (loginForm) {
-    loginForm.addEventListener('submit', function(e) {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+
       if (!userSelect.value) {
         showLoginError('Vui lòng chọn user!');
         return;
       }
+
+      if (!password) {
+        showLoginError('Vui lòng nhập mật khẩu!');
+        return;
+      }
+
       hideLoginError();
-      simpleLogin(usernameInput.value.trim());
+      await simpleLogin(username, password);
     });
   }
-  
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      document.getElementById('confirmLogoutModal').style.display = 'flex';
-    });
-  }
-  
-  const cancelLogoutBtn = document.getElementById('cancelLogout');
-  if (cancelLogoutBtn) {
-    cancelLogoutBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      document.getElementById('confirmLogoutModal').style.display = 'none';
-    });
-  }
-  
-  const closeBackgroundModal = document.getElementById('closeBackgroundModal');
-  if (closeBackgroundModal) {
-    closeBackgroundModal.addEventListener('click', function() {
-      const backgroundModal = document.getElementById('backgroundModal');
-      if (backgroundModal) backgroundModal.style.display = 'none';
-    });
-  }
-  
-  // Check saved login
+
+  /* =======================
+     LOGOUT
+  ======================== */
+  document.getElementById('logoutBtn')?.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('confirmLogoutModal').style.display = 'flex';
+  });
+
+  document.getElementById('cancelLogout')?.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('confirmLogoutModal').style.display = 'none';
+  });
+
+  document.getElementById('closeBackgroundModal')?.addEventListener('click', () => {
+    document.getElementById('backgroundModal').style.display = 'none';
+  });
+
+  /* =======================
+     AUTO LOGIN
+  ======================== */
   const savedUser = localStorage.getItem('liveschedule_user');
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
       showMainContent();
       loadScheduleForToday();
-    } catch (e) {
+    } catch {
       localStorage.removeItem('liveschedule_user');
       document.getElementById('loginModal').style.display = 'flex';
     }
   } else {
     document.getElementById('loginModal').style.display = 'flex';
   }
-  
-  // Load users
+
   loadUsersList();
 });
 
