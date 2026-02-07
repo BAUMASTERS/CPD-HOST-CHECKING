@@ -1,5 +1,5 @@
 // ===== CONFIG API =====
-const API_URL = "https://script.google.com/macros/s/AKfycbxbrAh62Tq2HzXZRmK1_Y2jbbDOVcjZ_wJ7miX3zKzpl3LNhua9DsZcYL0eFN-g3Eq9/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxCWBKJu8nicjQIgJO7pl0aeUBtBHL0F5e6fBdM3udAZjaRruMCV2dNFpArxchOn6UM/exec";
 
 // ===== LOAD DATA TỪ API =====
 async function fetchScheduleData({ san, brand, date }) {
